@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ganusa Research AI - Modern</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: { extend: {} }
+        }
+    </script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css?v=2">
+</head>
+<body class="bg-[#f9fafb] dark:bg-gray-900 text-gray-800 dark:text-gray-200 transition-colors duration-300 font-sans antialiased h-screen flex flex-col overflow-hidden">
+
+    <!-- Top Header -->
+    <header class="bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 flex-none z-10">
+        <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3 cursor-pointer" onclick="location.reload()">
+                <div class="bg-blue-600 outline-none w-8 h-8 rounded-lg flex items-center justify-center shadow-md shadow-blue-500/30">
+                    <i class="fa-solid fa-bolt text-white text-sm"></i>
+                </div>
+                <h1 class="text-lg font-bold text-gray-900 dark:text-white tracking-tight">Research<span class="text-blue-600">Flow</span></h1>
+            </div>
+            <div class="flex items-center gap-3">
+                <div class="hidden sm:flex text-xs px-3 py-1 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 rounded-full font-medium border border-gray-200 dark:border-gray-700">
+                    GANUSA AI Research Agent
+                </div>
+                <button id="theme-toggle" class="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition" title="Toggle Theme">
+                    <i class="fa-solid fa-moon dark:hidden"></i>
+                    <i class="fa-solid fa-sun hidden dark:block"></i>
+                </button>
+                <button id="new-chat-btn" class="text-sm px-4 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full font-medium hover:bg-blue-100 dark:hover:bg-blue-900/50 transition flex items-center gap-2" title="New Chat">
+                    <i class="fa-solid fa-plus text-xs"></i> New
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Scrollable Chat Area -->
+    <main class="flex-grow overflow-y-auto w-full scroll-smooth pt-4" id="chat-container">
+        <div class="max-w-3xl mx-auto px-4 py-8 pb-40 flex flex-col gap-8" id="chat-content">
+
+            <!-- Hero / Welcome (Shown initially) -->
+            <div id="welcome-screen" class="mt-8 sm:mt-16 flex flex-col items-center text-center px-4 fade-in">
+                <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-xl flex items-center justify-center mb-6 shadow-blue-500/20 transform hover:scale-105 transition">
+                    <i class="fa-solid fa-magnifying-glass text-white text-2xl"></i>
+                </div>
+                <h2 class="text-3xl sm:text-4xl font-extrabold text-gray-900 dark:text-white mb-4 tracking-tight">What do you want to learn?</h2>
+                <p class="text-gray-500 dark:text-gray-400 max-w-lg mb-8 text-base">
+                    Ask any question. The agent will autonomously plan, search the web, verify facts, self-correct, and synthesize an accurate answer.
+                </p>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl text-left" id="sample-questions">
+                    <!-- Sample buttons injected here -->
+                </div>
+            </div>
+
+            <!-- Thread will go here dynamically -->
+        </div>
+    </main>
+
+    <!-- Fixed Bottom Input Area -->
+    <div class="bg-gradient-to-t from-[#f9fafb] dark:from-gray-900 via-[#f9fafb] dark:via-gray-900 to-transparent pt-8 pb-6 px-4 fixed bottom-0 w-full flex-none z-20">
+        <div class="max-w-3xl mx-auto relative shadow-[0_0_40px_rgba(0,0,0,0.05)] rounded-2xl bg-white dark:bg-gray-800 focus-within:shadow-[0_0_40px_rgba(59,130,246,0.1)] transition-shadow">
+            <form id="question-form" class="relative group border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden bg-white dark:bg-gray-800">
+                <textarea
+                    id="question"
+                    class="w-full bg-transparent px-5 py-4 pr-14 outline-none resize-none text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 font-medium"
+                    placeholder="Ask research agent..."
+                    rows="1"
+                    style="min-height: 56px; max-height: 200px;"
+                ></textarea>
+                <button type="button" id="stop-btn" class="hidden absolute right-3 bottom-3 w-8 h-8 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center transition shadow-md group border border-red-600">     
+                    <i class="fa-solid fa-square text-xs"></i>
+                </button>
+                <button type="submit" id="submit-btn" class="absolute right-3 bottom-3 w-8 h-8 rounded-full bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed transition shadow-md">
+                    <i class="fa-solid fa-arrow-up text-sm"></i>
+                </button>
+            </form>
+            <div class="text-center mt-2 text-[10px] text-gray-400 dark:text-gray-500 font-medium tracking-wide">
+                ResearchFlow may produce inaccurate results. Verify important information.
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Toast (Hidden) -->
+    <div id="error-toast" class="fixed top-20 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-5 py-3 rounded-xl shadow-2xl z-50 text-sm font-medium flex items-center gap-3 transition-all duration-300 opacity-0 translate-y-[-20px] pointer-events-none">
+        <i class="fa-solid fa-circle-exclamation"></i>
+        <span id="error-message">Error connecting to server.</span>
+    </div>
+
+    <!-- Templates for JS injected content -->
+    <template id="tpl-user-msg">
+        <div class="flex flex-col items-end w-full fade-in slide-up">
+            <div class="bg-gray-100/80 dark:bg-gray-800 px-5 py-3 rounded-3xl rounded-tr-sm max-w-[85%] text-gray-800 dark:text-gray-200 shadow-sm border border-gray-100 dark:border-gray-700">
+                <span class="user-text whitespace-pre-wrap font-medium"></span> 
+            </div>
+        </div>
+    </template>
+
+    <template id="tpl-ai-msg">
+        <div class="flex flex-col items-start w-full gap-3 fade-in relative mb-4 mt-2">
+            <!-- execution trace accordion -->
+            <div class="process-accordion min-w-[280px] max-w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-sm overflow-hidden transition-all duration-300">
+                <div class="process-header px-4 py-3 cursor-pointer flex items-center justify-between bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors select-none"> 
+                    <div class="flex items-center gap-3">
+                        <div class="status-icon w-5 h-5 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300">
+                            <!-- spinner / check inserted here -->
+                            <i class="fa-solid fa-circle-notch fa-spin text-xs"></i>
+                        </div>
+                        <span class="status-summary text-sm font-semibold text-gray-700 dark:text-gray-200">Thinking...</span>
+                    </div>
+                    <i class="fa-solid fa-chevron-down text-xs text-gray-400 transition-transform duration-300 transform twist-icon"></i>
+                </div>
+                <div class="process-body overflow-hidden max-h-0 bg-gray-50/50 dark:bg-gray-800/50 border-t border-gray-100 dark:border-gray-700 transition-all duration-500 ease-in-out">
+                    <ul class="process-list px-4 py-3 text-sm flex flex-col gap-3 relative before:content-[''] before:absolute before:left-[23.5px] before:top-4 before:bottom-6 before:w-[2px] before:bg-gray-200 dark:before:bg-gray-600">
+                        <!-- steps injected here -->
+                    </ul>
+                </div>
+            </div>
+
+            <!-- final answer (hidden initially) -->
+            <div class="final-answer-container hidden w-full mt-2">
+                <div class="flex gap-4">
+                    <div class="flex-none">
+                        <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center shadow-md">
+                            <i class="fa-solid fa-bolt text-white text-xs"></i> 
+                        </div>
+                    </div>
+                    <div class="flex-grow pt-1 text-gray-800 dark:text-gray-200 leading-relaxed final-answer markdown-body">
+                        <!-- Final text injected here -->
+                    </div>
+                </div>
+                <div class="ml-12 mt-4 pt-3 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between text-xs text-gray-400 dark:text-gray-500">
+                    <div class="flex items-center gap-2" title="Model used for synthesis">
+                        <i class="fa-solid fa-microchip"></i>
+                        <span>Model: {{ model_name }}</span>
+                    </div>
+                    <button type="button" class="copy-btn hover:text-gray-700 dark:hover:text-gray-300 transition flex items-center gap-1.5 focus:outline-none">
+                        <i class="fa-regular fa-copy"></i>
+                        <span>Copy Answer</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- sources container (hidden initially) -->
+            <div class="sources-container hidden w-full pl-12 mt-2 gap-2 flex-wrap">
+               <!-- source pills -->
+            </div>
+        </div>
+    </template>
+
+    <script src="/static/js/main.js"></script>
+</body>
+</html>
