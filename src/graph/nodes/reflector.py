@@ -1,19 +1,17 @@
-import json
-import re
+import logging
+import time
 from datetime import datetime
 from src.graph.state import ResearchState
 from src.services.bedrock_client import generate_text
+from src.utils.json_parser import extract_json
 
-
-def extract_json(text: str) -> dict:
-    match = re.search(r"\{.*\}", text, re.DOTALL)
-    if not match:
-        raise ValueError("No JSON object found")
-    return json.loads(match.group(0))
+logger = logging.getLogger(__name__)
 
 
 def reflector_node(state: ResearchState) -> ResearchState:
-    question = state["question"]
+    question = state.get("question", "")
+    start = time.time()
+    logger.info("reflector.start", extra={"question": question[:100]})
     verification_notes = state.get("verification_notes", "")
     iteration_count = state.get("iteration_count", 0)
     current_date = datetime.now().strftime("%Y-%m-%d")
@@ -60,6 +58,11 @@ Verifier notes:
             question,
             f"What are the latest facts and context related to: {question}",
         ]
+
+    logger.info("reflector.done", extra={
+        "sub_questions_count": len(new_sub_questions),
+        "duration_ms": int((time.time() - start) * 1000)
+    })
 
     return {
         **state,

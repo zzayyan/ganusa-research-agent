@@ -38,6 +38,33 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    // ── Mode Toggle ───────────────────────────────────────
+    let currentMode = localStorage.getItem('researchMode') || 'basic';
+    const modeBasicBtn = document.getElementById('mode-basic-btn');
+    const modeDeepBtn  = document.getElementById('mode-deep-btn');
+
+    const applyModeUI = (mode) => {
+        if (mode === 'basic') {
+            modeBasicBtn.classList.add('active');
+            modeDeepBtn.classList.remove('active');
+        } else {
+            modeDeepBtn.classList.add('active');
+            modeBasicBtn.classList.remove('active');
+        }
+    };
+    applyModeUI(currentMode);
+
+    modeBasicBtn.addEventListener('click', () => {
+        currentMode = 'basic';
+        localStorage.setItem('researchMode', 'basic');
+        applyModeUI('basic');
+    });
+    modeDeepBtn.addEventListener('click', () => {
+        currentMode = 'deep';
+        localStorage.setItem('researchMode', 'deep');
+        applyModeUI('deep');
+    });
+
 
     // Populate samples
     SAMPLE_QUESTIONS.forEach(sample => {
@@ -100,6 +127,24 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!text) return "";
         let html = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         
+        // Extract code blocks temporarily
+        const codeBlocks = [];
+        html = html.replace(/```(?:[a-zA-Z0-9]+)?\n([\s\S]*?)```/g, (match, code) => {
+            codeBlocks.push(`<pre class="bg-gray-100 dark:bg-gray-800 p-4 rounded-xl overflow-x-auto text-sm block font-mono my-3 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 shadow-sm">${code.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>`); // Re-escape safely just for the code content
+            return `__CODE_BLOCK_${codeBlocks.length - 1}__`;
+        });
+        html = html.replace(/```([\s\S]*?)```/g, (match, code) => {
+            codeBlocks.push(`<pre class="bg-gray-100 dark:bg-gray-800 p-4 rounded-xl overflow-x-auto text-sm block font-mono my-3 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 shadow-sm">${code.trim()}</pre>`);
+            return `__CODE_BLOCK_${codeBlocks.length - 1}__`;
+        });
+
+        // Extract inline code
+        const inlineCodes = [];
+        html = html.replace(/`([^`\n]+)`/g, (match, code) => {
+            inlineCodes.push(`<code class="bg-gray-100 dark:bg-gray-800 text-pink-600 dark:text-pink-400 px-1.5 py-0.5 rounded-md font-mono text-[13px] border border-gray-200 dark:border-gray-700">${code}</code>`);
+            return `__INLINE_CODE_${inlineCodes.length - 1}__`;
+        });
+
         // Inline citations tracking like [1] or [1, 2]
         html = html.replace(/\[((?:\d+,\s*)*\d+)\]/g, (match, numStr) => {
             const nums = numStr.split(',').map(n => parseInt(n.trim(), 10));
@@ -129,6 +174,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // Headings (### before ##)
         html = html.replace(/^### (.*)$/gm, '<h3>$1</h3>');
         html = html.replace(/^## (.*)$/gm, '<h2>$1</h2>');
+        html = html.replace(/^# (.*)$/gm, '<h1>$1</h1>');
         // Bold
         html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
         // Italic
@@ -136,13 +182,25 @@ document.addEventListener("DOMContentLoaded", () => {
         // Lists — wrap consecutive <li> items in <ul>
         html = html.replace(/^- (.*)$/gm, '<li>$1</li>');
         html = html.replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>');
+        
         // Paragraphs over double newlines
         html = html.split('\n\n').map(p => {
             const trimmed = p.trim();
             if (!trimmed) return '';
-            if (trimmed.startsWith('<h') || trimmed.startsWith('<ul') || trimmed.startsWith('<li')) return p;
+            if (trimmed.startsWith('<h') || trimmed.startsWith('<ul') || trimmed.startsWith('<li') || trimmed.startsWith('__CODE_BLOCK_')) return p;
             return `<p>${p.replace(/\n/g, '<br/>')}</p>`;
         }).join('');
+
+        // Restore inline codes
+        inlineCodes.forEach((codeHtml, i) => {
+            html = html.replace(`__INLINE_CODE_${i}__`, codeHtml);
+        });
+
+        // Restore code blocks
+        codeBlocks.forEach((codeHtml, i) => {
+            html = html.replace(`__CODE_BLOCK_${i}__`, codeHtml);
+        });
+
         return html;
     };
 
@@ -204,6 +262,14 @@ document.addEventListener("DOMContentLoaded", () => {
         // Start opened automatically
         accordion.classList.add("open");
 
+        // Inject mode badge into accordion header
+        const modeForRequest = currentMode;
+        const badgeLabel = modeForRequest === 'deep' ? '🔬 Deep' : '⚡ Basic';
+        const badge = document.createElement('span');
+        badge.className = `mode-badge ${modeForRequest}`;
+        badge.textContent = badgeLabel;
+        statusSummary.appendChild(badge);
+
         chatContent.appendChild(nodeAi);
         scrollToBottom();
 
@@ -247,7 +313,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const response = await fetch("/research/stream", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ question }),
+                body: JSON.stringify({ question, mode: modeForRequest }),
                 signal: abortController.signal
             });
 
@@ -276,15 +342,17 @@ document.addEventListener("DOMContentLoaded", () => {
                         
                         try {
                             const data = JSON.parse(payloadStr);
-                            
+
                             if (data.type === "error") throw new Error(data.detail);
-                            
+
                             if (data.type === "progress") {
                                 const node = data.node;
                                 const state = data.state;
                                 finalResult = { ...finalResult, ...state };
-                                
+
                                 if (node === "planner") {
+                                    // Capture time_range set by planner for search step badge
+                                    if (state.time_range) finalResult.time_range = state.time_range;
                                     let extra = "";
                                     if (state.sub_questions && state.sub_questions.length > 0) {
                                         extra = `<ul class="list-none pl-1 space-y-2 mt-2">
@@ -298,8 +366,15 @@ document.addEventListener("DOMContentLoaded", () => {
                                     }
                                     addStep("planner", "Planning Strategy", "Deconstructing query into search intents:", extra);
                                     statusSummary.textContent = "Planning research...";
+
                                 } else if (node === "search") {
                                     const len = state.search_results ? state.search_results.length : 0;
+                                    // Build amber time badge if planner set a time_range
+                                    const tr = finalResult.time_range;
+                                    const trLabels = { day: "📅 Today", week: "📅 This week", month: "📅 This month", year: "📅 This year" };
+                                    const trBadge = (tr && trLabels[tr])
+                                        ? ` <span style="display:inline-flex;align-items:center;font-size:10px;font-weight:700;padding:1px 7px;border-radius:9999px;background:#fffbeb;color:#b45309;border:1px solid #fcd34d;margin-left:4px;">${trLabels[tr]}</span>`
+                                        : "";
                                     let extra = "";
                                     if (state.search_results && state.search_results.length > 0) {
                                         extra = `<ul class="list-none space-y-2 mt-2">
@@ -309,7 +384,7 @@ document.addEventListener("DOMContentLoaded", () => {
                                                 return `
                                                 <li class="flex flex-col text-xs text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 p-2 rounded-md border border-gray-200 dark:border-gray-700 shadow-sm">
                                                     <div class="flex items-center gap-2 mb-1 truncate">
-                                                        <img src="https://www.google.com/s2/favicons?domain=${escapeHtml(hostname)}&sz=16" class="w-3 h-3 rounded-full" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cGF0aCBmaWxsPSIjY2JkNWUxIiBkPSJNMzUyIDI1NmMwIDIyLjItMTcgNDAtNDAgNDBzLTQwLTE3LjgtNDAtNDAgMTctNDAgNDAtNDAgNDAgMTcuOCA0MCA0MHpNMTQ0IDI1NmMwIDIyLjItMTcgNDAtNDAgNDBzLTQwLTE3LjgtNDAtNDAgMTctNDAgNDAtNDAgNDAgMTcuOCA0MCA0MHpNMjU2IDEyOGMwLTIyLjIgMTctNDAgNDAtNDBzNDAgMTcuOCA0MCA0MC0xNyA0MC00MCA0MC00MC0xNy44LTQwLTQwek0yNTYgMzg0YzAgMjIuMi0xNyA0MC00MCA0MHMtNDAtMTcuOC00MC00MCAxNy00MCA0MC00MCA0MCAxNy44IDQwIDQweiIvPjwvc3ZnPg=='" />
+                                                        <img src="https://www.google.com/s2/favicons?domain=${escapeHtml(hostname)}&sz=16" class="w-3 h-3 rounded-full" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cGF0aCBmaWxsPSIjY2JkNWUxIiBkPSJNMzUyIDI1NmMwIDIyLjItMTcgNDAtNDAgNDBzLTQwLTE3LjgtNDAtNDAgMTctNDAgNDAtNDAgNDAgMTcuOCA0MCA0MHpNMTQ0IDI1NmMwIDIyLjItMTcgNDAtNDAgNDBzLTQwLTE3LjgtNDAtNDAgMTctNDAgNDAtNDAgNDAgMTcuOCA0MCA0MHpNMjU2IDEyOGMwLTIyLjIgMTctNDAgNDAtNDBzNDAgMTcuOCA0MCA0MC0xNyA0MC00MCA0MC00MC0xNy44LTQwLTQwek0yNTYgMzg0YzAgMjIuMi0xNyA0MC00MCA0MHMtNDAtMTcuOC00MC00MCAxNy00MCA0MC00MCA0MCAxNy44IDQwIDQweiIvPjwvc3ZnPg==' " />
                                                         <a href="${escapeHtml(res.url)}" target="_blank" class="font-semibold text-blue-600 hover:underline truncate">${escapeHtml(res.title)}</a>
                                                     </div>
                                                     <span class="text-[10px] text-gray-400 line-clamp-2">${escapeHtml(res.content || 'Content retrieved...')}</span>
@@ -318,8 +393,9 @@ document.addEventListener("DOMContentLoaded", () => {
                                             ${len > 5 ? `<li class="text-xs text-gray-400 pl-1 mt-1 font-medium">+${len - 5} more sources</li>` : ''}
                                         </ul>`;
                                     }
-                                    addStep("search", "Web Search", `Evaluated ${len} search results...`, extra);
+                                    addStep("search", `Web Search${trBadge}`, `Evaluated ${len} search results...`, extra);
                                     statusSummary.textContent = "Searching web sources...";
+
                                 } else if (node === "verifier") {
                                     const conf = state.confidence_score ? (state.confidence_score*100).toFixed(0) : 0;
                                     let isHigh = conf > 75;
@@ -336,9 +412,11 @@ document.addEventListener("DOMContentLoaded", () => {
                                     `;
                                     addStep("verifier", "Verifying Facts", `Cross-checking evidence:`, extra);
                                     statusSummary.textContent = "Verifying evidence...";
+
                                 } else if (node === "reflector") {
                                     addStep("reflector", "Reflecting", state.reflection_notes || "Identifying gaps, needs retry.");
                                     statusSummary.textContent = "Self-correcting...";
+
                                 } else if (node === "synthesizer") {
                                     addStep("synthesizer", "Synthesizing", "Drafting final comprehensive answer...");
                                     statusSummary.textContent = "Synthesizing final answer...";

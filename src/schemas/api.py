@@ -1,9 +1,10 @@
 from pydantic import BaseModel
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Literal
 
 
 class ResearchRequest(BaseModel):
     question: str
+    mode: Literal["basic", "deep"] = "basic"
 
 
 class ResearchResponse(BaseModel):

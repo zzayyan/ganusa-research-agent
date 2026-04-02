@@ -172,3 +172,104 @@ html.dark .markdown-body .inline-citation:hover {
   background-color: #4b5563; /* gray-600 */
   color: #f9fafb; /* gray-50 */
 }
+
+/* ── Mode Toggle ─────────────────────────────────────── */
+#question {
+  padding-bottom: 2.75rem; /* space for mode-toggle row  */
+}
+
+.mode-toggle-wrap {
+  position: absolute;
+  left: 0.75rem;
+  bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: #f3f4f6;
+  border-radius: 9999px;
+  padding: 2px;
+  border: 1px solid #e5e7eb;
+  transition: background 0.2s;
+}
+
+html.dark .mode-toggle-wrap {
+  background: #374151;
+  border-color: #4b5563;
+}
+
+.mode-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.7rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  border-radius: 9999px;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+  color: #6b7280;
+  background: transparent;
+  white-space: nowrap;
+}
+
+html.dark .mode-btn {
+  color: #9ca3af;
+}
+
+.mode-btn.active {
+  background: #fff;
+  color: #111827;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+}
+
+html.dark .mode-btn.active {
+  background: #1f2937;
+  color: #f9fafb;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+}
+
+.mode-btn.active.deep {
+  color: #6366f1; /* indigo */
+}
+
+html.dark .mode-btn.active.deep {
+  color: #818cf8;
+}
+
+/* Mode badge shown inside process accordion header */
+.mode-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.1rem 0.5rem;
+  border-radius: 9999px;
+  margin-left: 0.5rem;
+  vertical-align: middle;
+}
+
+.mode-badge.basic {
+  background: #eff6ff;
+  color: #2563eb;
+  border: 1px solid #bfdbfe;
+}
+
+.mode-badge.deep {
+  background: #eef2ff;
+  color: #4f46e5;
+  border: 1px solid #c7d2fe;
+}
+
+html.dark .mode-badge.basic {
+  background: #1e3a5f;
+  color: #93c5fd;
+  border-color: #2563eb;
+}
+
+html.dark .mode-badge.deep {
+  background: #312e81;
+  color: #a5b4fc;
+  border-color: #4f46e5;
+}

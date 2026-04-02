@@ -52,7 +52,11 @@ async def research_stream(request: ResearchRequest):
         def run_graph():
             try:
                 for event in research_graph.stream(
-                    {"question": request.question, "iteration_count": 0},
+                    {
+                        "question": request.question,
+                        "research_mode": request.mode,
+                        "iteration_count": 0,
+                    },
                     stream_mode="updates",
                 ):
                     node_name = list(event.keys())[0]
@@ -84,6 +88,7 @@ def research(request: ResearchRequest):
     try:
         result = research_graph.invoke({
             "question": request.question,
+            "research_mode": request.mode,
             "iteration_count": 0
         })
 

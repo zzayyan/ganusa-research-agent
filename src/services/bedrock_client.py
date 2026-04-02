@@ -27,7 +27,7 @@ def _get_client():
     return _build_client()
 
 
-def generate_text(prompt: str) -> str:
+def generate_text(prompt: str, max_tokens: int = 1024, temperature: float = 0.5) -> str:
     last_error = None
 
     for attempt in range(1, MAX_RETRIES + 1):
@@ -41,7 +41,7 @@ def generate_text(prompt: str) -> str:
                         "content": [{"text": prompt}],
                     }
                 ],
-                inferenceConfig={"temperature": 0.5},
+                inferenceConfig={"temperature": temperature, "maxTokens": max_tokens},
             )
             return response["output"]["message"]["content"][0]["text"]
 

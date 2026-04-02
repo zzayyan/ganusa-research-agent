@@ -1,22 +1,40 @@
-import json
-import re
+import logging
+import time
 from datetime import datetime
 from src.graph.state import ResearchState
 from src.services.bedrock_client import generate_text
+from src.utils.json_parser import extract_json
 
+logger = logging.getLogger(__name__)
 
-def extract_json(text: str) -> dict:
-    match = re.search(r"\{.*\}", text, re.DOTALL)
-    if not match:
-        raise ValueError("No JSON object found")
-    return json.loads(match.group(0))
+# Mode-specific configuration
+MODE_CONFIG = {
+    "basic": {
+        "confidence_threshold": 0.55,
+        "max_retries": 1,
+        "threshold_label": "0.55",
+    },
+    "deep": {
+        "confidence_threshold": 0.70,
+        "max_retries": 3,
+        "threshold_label": "0.70",
+    },
+}
 
 
 def verifier_node(state: ResearchState) -> ResearchState:
-    question = state["question"]
+    question = state.get("question", "")
+    research_mode = state.get("research_mode", "basic")
+    start = time.time()
+    logger.info("verifier.start", extra={"question": question[:100], "mode": research_mode})
+
     search_results = state.get("search_results", [])
     iteration_count = state.get("iteration_count", 0)
     current_date = datetime.now().strftime("%Y-%m-%d")
+
+    config = MODE_CONFIG.get(research_mode, MODE_CONFIG["basic"])
+    threshold_label = config["threshold_label"]
+    max_retries = config["max_retries"]
 
     valid_results = [
         item for item in search_results
@@ -49,6 +67,7 @@ Rules:
 - If evidence provides strong context that logically answers the question, confidence should be between 0.70 and 0.85
 - If evidence is somewhat related but incomplete, confidence should be between 0.50 and 0.70
 - If evidence is mostly irrelevant, confidence should be below 0.50
+- Set needs_retry to true ONLY IF confidence_score is below {threshold_label}
 
 Important:
 - Evaluate evidence based on how well it answers the USER's specific question.
@@ -78,8 +97,21 @@ Evidence:
         needs_retry = len(valid_results) < 3
         verification_notes = "Fallback verifier used because structured parsing failed."
 
-    if iteration_count >= 1:
+    # Cap retries based on mode: basic=1, deep=3
+    if iteration_count >= max_retries:
         needs_retry = False
+        logger.info("verifier.retry_cap_reached", extra={
+            "mode": research_mode,
+            "iteration_count": iteration_count,
+            "max_retries": max_retries,
+        })
+
+    logger.info("verifier.done", extra={
+        "confidence": confidence_score,
+        "needs_retry": needs_retry,
+        "mode": research_mode,
+        "duration_ms": int((time.time() - start) * 1000)
+    })
 
     return {
         **state,

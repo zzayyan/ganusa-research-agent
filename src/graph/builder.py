@@ -6,12 +6,14 @@ from src.graph.nodes.verifier import verifier_node
 from src.graph.nodes.reflector import reflector_node
 from src.graph.nodes.synthesizer import synthesizer_node
 
+MAX_ITERATIONS = 3
 
 def route_after_verifier(state: ResearchState):
+    if state.get("iteration_count", 0) >= MAX_ITERATIONS:
+        return "synthesizer"  # Force synthesis after max retries
     if state.get("needs_retry", False):
         return "reflector"
     return "synthesizer"
-
 
 def build_research_graph():
     graph = StateGraph(ResearchState)
