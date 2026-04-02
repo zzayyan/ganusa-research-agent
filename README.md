@@ -1,5 +1,5 @@
 # ResearchFlow AI ??
-### Self-Correcting Agentic Research Pipeline · LangGraph + FastAPI + AWS Bedrock
+### Self-Correcting Agentic Research Pipeline ï¿½ LangGraph + FastAPI + AWS Bedrock
 
 [![Python](https://img.shields.io/badge/Python-3.10-blue?logo=python)](https://python.org)
 [![LangGraph](https://img.shields.io/badge/LangGraph-Agentic-purple)](https://github.com/langchain-ai/langgraph)
@@ -8,7 +8,7 @@
 [![Tavily](https://img.shields.io/badge/Tavily-web%20search-black)](https://tavily.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-lightgrey)](LICENSE)
 
-> **ResearchFlow AI** is a production-grade agentic research system that decomposes complex questions into sub-queries, retrieves and verifies web evidence, and synthesizes citation-grounded answers — with self-correcting retry logic when evidence quality is low.
+> **ResearchFlow AI** is a production-grade agentic research system that decomposes complex questions into sub-queries, retrieves and verifies web evidence, and synthesizes citation-grounded answers ï¿½ with self-correcting retry logic when evidence quality is low.
 
 ---
 
@@ -18,7 +18,7 @@ The application has been extensively refactored to support a **monolithic archit
 - **Modern Chat Interface:** Real-time streaming output, markdown formatting, and inline citation badges.
 - **Execution Tracing:** Live accordion tracing the agent's thought process (planning, searching, verifying, synthesizing) step-by-step.
 - **Dark Mode Support:** Fully integrated dark mode with local-storage preference saving.
-- **Single Backend:** Unified FastAPI server natively rendering HTML templating and providing the API streaming endpoints — removing the need for a separate Node.js/React frontend.
+- **Single Backend:** Unified FastAPI server natively rendering HTML templating and providing the API streaming endpoints ï¿½ removing the need for a separate Node.js/React frontend.
 - **AWS Bedrock Backend:** Swapped from local Ollama to highly-capable AWS Bedrock cloud models (e.g. `amazon.nova-pro-v1:0`).
 
 ---
@@ -42,7 +42,7 @@ graph TD
 |------|------|
 | **Planner** | Analyzes query intent, defines research strategy and sub-questions |
 | **Search** | Retrieves web evidence via Tavily Search API |
-| **Verifier** | Scores evidence relevance and confidence (0–100%) |
+| **Verifier** | Scores evidence relevance and confidence (0ï¿½100%) |
 | **Reflector** | Identifies gaps in information and handles retry conditions |
 | **Synthesizer** | Generates detailed comprehensive answers with inline citations (`[1]`, `[2]`) |
 
@@ -105,27 +105,27 @@ Navigate to `http://127.0.0.1:8000` to interact with the modern web UI.
 ```
 ganusa-research-agent/
 +-- src/
-¦   +-- graph/
-¦   ¦   +-- nodes/
-¦   ¦   ¦   +-- planner.py        # Generates research strategy
-¦   ¦   ¦   +-- search.py         # Handles Tavily integration
-¦   ¦   ¦   +-- verifier.py       # Confidence checking
-¦   ¦   ¦   +-- reflector.py      # Reflection and cyclic routing
-¦   ¦   ¦   +-- synthesizer.py    # Answer drafting
-¦   ¦   +-- builder.py            # LangGraph assembly
-¦   ¦   +-- state.py              # TypedDict shared state
-¦   +-- schemas/
-¦   ¦   +-- api.py                # Pydantic models
-¦   +-- services/
-¦   ¦   +-- bedrock_client.py     # AWS Bedrock API interface
-¦   ¦   +-- tavily_client.py      # Search interactions
-¦   +-- static/
-¦   ¦   +-- css/style.css         # Tailwind/custom styles
-¦   ¦   +-- js/main.js            # Chat UI logic, SSE parsing
-¦   +-- templates/
-¦   ¦   +-- index.html            # Main Chat Interface (Jinja2)
-¦   +-- config.py                 # Env loader
-¦   +-- main.py                   # FastAPI Routing and WebApp Entry
+ï¿½   +-- graph/
+ï¿½   ï¿½   +-- nodes/
+ï¿½   ï¿½   ï¿½   +-- planner.py        # Generates research strategy
+ï¿½   ï¿½   ï¿½   +-- search.py         # Handles Tavily integration
+ï¿½   ï¿½   ï¿½   +-- verifier.py       # Confidence checking
+ï¿½   ï¿½   ï¿½   +-- reflector.py      # Reflection and cyclic routing
+ï¿½   ï¿½   ï¿½   +-- synthesizer.py    # Answer drafting
+ï¿½   ï¿½   +-- builder.py            # LangGraph assembly
+ï¿½   ï¿½   +-- state.py              # TypedDict shared state
+ï¿½   +-- schemas/
+ï¿½   ï¿½   +-- api.py                # Pydantic models
+ï¿½   +-- services/
+ï¿½   ï¿½   +-- bedrock_client.py     # AWS Bedrock API interface
+ï¿½   ï¿½   +-- tavily_client.py      # Search interactions
+ï¿½   +-- static/
+ï¿½   ï¿½   +-- css/style.css         # Tailwind/custom styles
+ï¿½   ï¿½   +-- js/main.js            # Chat UI logic, SSE parsing
+ï¿½   +-- templates/
+ï¿½   ï¿½   +-- index.html            # Main Chat Interface (Jinja2)
+ï¿½   +-- config.py                 # Env loader
+ï¿½   +-- main.py                   # FastAPI Routing and WebApp Entry
 +-- pyproject.toml
 +-- Makefile
 +-- README.md
@@ -135,6 +135,6 @@ ganusa-research-agent/
 
 ## ?? License
 
-MIT — free to use and build on.
+MIT ï¿½ free to use and build on.
 
 ---

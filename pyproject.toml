@@ -15,7 +15,7 @@ dependencies = [
     "tavily-python",
     "boto3",
     "jinja2",
-    "aiofiles"
+    "aiofiles",
 ]
 
 [build-system]

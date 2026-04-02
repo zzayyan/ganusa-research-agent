@@ -58,20 +58,24 @@ Return ONLY one JSON object. No markdown fences. No explanation.
 
 Schema:
 {{
-  "final_answer": "Direct answer:\\n- sentence with citations\\n- sentence with citations\\n- sentence with citations\\n\\nLimitation: short limitation with citation"
+  "final_answer": "## Overview\\n\\nBrief summary paragraph with citations.\\n\\n## Key Findings\\n\\n- Finding one with citation [1]\\n- Finding two with citation [2]\\n- Finding three with citation [3]\\n\\n## Detailed Analysis\\n\\nIn-depth analysis paragraphs with citations.\\n\\n## Limitations\\n\\nShort note on evidence gaps or caveats."
 }}
 
 Rules:
-- Use ONLY the evidence below
-- Use inline citations like [1], [2], or [1][2]
-- Write exactly THREE bullet points under 'Direct answer:'
-- Each bullet must be a complete sentence
-- Every bullet must contain at least one citation
-- Do NOT include labels like 'Bullet 1'
-- The limitation must NOT be a bullet
-- Keep the answer under 180 words
+- Write a comprehensive research report using the structure above
+- Use ONLY the evidence provided below — do NOT hallucinate facts
+- Use inline citations like [1], [2], or [1][2] throughout
+- **Overview**: 2-3 sentences summarizing the answer to the question
+- **Key Findings**: 3-5 bullet points of the most important facts discovered
+- **Detailed Analysis**: 2-4 paragraphs providing deeper context and explanation
+- **Limitations**: 1-2 sentences noting any gaps or caveats in the evidence
+- Every section must contain at least one citation
+- Use markdown formatting (bold, bullet points, headers)
+- Keep the report between 300-500 words
 - Answer the user's question directly and factually based on the evidence
-- Factor in the current date if the user's question depends on it
+- Factor in the current date when evaluating time-sensitive questions
+- Write in a professional, analytical tone
+- IMPORTANT: Detect the language of the User Question and write the ENTIRE report in that same language, including all section headings
 
 Current Date: {current_date}
 User Question:
@@ -90,21 +94,20 @@ Evidence:
         if not final_answer:
             raise ValueError("Empty final_answer")
 
-        # Validate bullet structure
-        bullets = final_answer.split("\n")
-        bullet_count = sum(1 for b in bullets if b.strip().startswith("-"))
-
-        if bullet_count != 3:
-            raise ValueError("Invalid bullet count")
+        # Basic sanity check — report should have at least one heading
+        if "##" not in final_answer:
+            raise ValueError("Missing report structure")
 
     except Exception:
         final_answer = (
-            "Direct answer:\n"
-            "- The research pipeline was unable to generate a properly structured answer from the retrieved evidence. "
-            "Please review the sources below for relevant information [1].\n"
-            "- The search results contain potentially useful context that may help answer this question [1][2].\n"
-            "- Consider rephrasing the question for more targeted results [1].\n\n"
-            "Limitation: The synthesizer could not produce a structured response from the available evidence."
+            "## Overview\n\n"
+            "The research pipeline was unable to generate a properly structured report "
+            "from the retrieved evidence [1].\n\n"
+            "## Key Findings\n\n"
+            "- The search results contain potentially useful context that may help answer this question [1][2]\n"
+            "- Consider rephrasing the question for more targeted results [1]\n\n"
+            "## Limitations\n\n"
+            "The synthesizer could not produce a structured response from the available evidence."
         )
 
     return {

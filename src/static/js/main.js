@@ -89,6 +89,13 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     };
 
+    // XSS-safe HTML escaping — uses the DOM itself, no regex hacks
+    const escapeHtml = (str) => {
+        const div = document.createElement('div');
+        div.textContent = String(str ?? '');
+        return div.innerHTML;
+    };
+
     const simpleMarkdown = (text, citations = []) => {
         if (!text) return "";
         let html = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -96,12 +103,10 @@ document.addEventListener("DOMContentLoaded", () => {
         // Inline citations tracking like [1] or [1, 2]
         html = html.replace(/\[((?:\d+,\s*)*\d+)\]/g, (match, numStr) => {
             const nums = numStr.split(',').map(n => parseInt(n.trim(), 10));
-            // Let's create an inline badge for each citation
             let badges = nums.map(num => {
                 const cite = citations.find(c => c.id === num || c.id === num.toString());
-                if (!cite) return match; // fallback if not found
+                if (!cite) return match;
                 
-                // Get hostname short like "youtube", "cnnindonesia"
                 let hostStr = "source";
                 try {
                     const u = new URL(cite.url);
@@ -121,16 +126,21 @@ document.addEventListener("DOMContentLoaded", () => {
             return badges.join('');
         });
 
+        // Headings (### before ##)
+        html = html.replace(/^### (.*)$/gm, '<h3>$1</h3>');
+        html = html.replace(/^## (.*)$/gm, '<h2>$1</h2>');
         // Bold
         html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
         // Italic
         html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
-        // Lists
+        // Lists — wrap consecutive <li> items in <ul>
         html = html.replace(/^- (.*)$/gm, '<li>$1</li>');
-        html = html.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
-        // Paragraphs over lines
+        html = html.replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>');
+        // Paragraphs over double newlines
         html = html.split('\n\n').map(p => {
-            if (p.startsWith('<ul>') || p.startsWith('<li>') || p.trim() === "") return p;
+            const trimmed = p.trim();
+            if (!trimmed) return '';
+            if (trimmed.startsWith('<h') || trimmed.startsWith('<ul') || trimmed.startsWith('<li')) return p;
             return `<p>${p.replace(/\n/g, '<br/>')}</p>`;
         }).join('');
         return html;
@@ -293,15 +303,18 @@ document.addEventListener("DOMContentLoaded", () => {
                                     let extra = "";
                                     if (state.search_results && state.search_results.length > 0) {
                                         extra = `<ul class="list-none space-y-2 mt-2">
-                                            ${state.search_results.slice(0, 5).map(res => `
+                                            ${state.search_results.slice(0, 5).map(res => {
+                                                let hostname = '';
+                                                try { hostname = new URL(res.url).hostname; } catch(e) {}
+                                                return `
                                                 <li class="flex flex-col text-xs text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 p-2 rounded-md border border-gray-200 dark:border-gray-700 shadow-sm">
                                                     <div class="flex items-center gap-2 mb-1 truncate">
-                                                        <img src="https://www.google.com/s2/favicons?domain=${new URL(res.url).hostname}&sz=16" class="w-3 h-3 rounded-full" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cGF0aCBmaWxsPSIjY2JkNWUxIiBkPSJNMzUyIDI1NmMwIDIyLjItMTcgNDAtNDAgNDBzLTQwLTE3LjgtNDAtNDAgMTctNDAgNDAtNDAgNDAgMTcuOCA0MCA0MHpNMTQ0IDI1NmMwIDIyLjItMTcgNDAtNDAgNDBzLTQwLTE3LjgtNDAtNDAgMTctNDAgNDAtNDAgNDAgMTcuOCA0MCA0MHpNMjU2IDEyOGMwLTIyLjIgMTctNDAgNDAtNDBzNDAgMTcuOCA0MCA0MC0xNyA0MC00MCA0MC00MC0xNy44LTQwLTQwek0yNTYgMzg0YzAgMjIuMi0xNyA0MC00MCA0MHMtNDAtMTcuOC00MC00MCAxNy00MCA0MC00MCA0MCAxNy44IDQwIDQweiIvPjwvc3ZnPg=='" />
-                                                        <a href="${res.url}" target="_blank" class="font-semibold text-blue-600 hover:underline truncate">${res.title}</a>
+                                                        <img src="https://www.google.com/s2/favicons?domain=${escapeHtml(hostname)}&sz=16" class="w-3 h-3 rounded-full" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cGF0aCBmaWxsPSIjY2JkNWUxIiBkPSJNMzUyIDI1NmMwIDIyLjItMTcgNDAtNDAgNDBzLTQwLTE3LjgtNDAtNDAgMTctNDAgNDAtNDAgNDAgMTcuOCA0MCA0MHpNMTQ0IDI1NmMwIDIyLjItMTcgNDAtNDAgNDBzLTQwLTE3LjgtNDAtNDAgMTctNDAgNDAtNDAgNDAgMTcuOCA0MCA0MHpNMjU2IDEyOGMwLTIyLjIgMTctNDAgNDAtNDBzNDAgMTcuOCA0MCA0MC0xNyA0MC00MCA0MC00MC0xNy44LTQwLTQwek0yNTYgMzg0YzAgMjIuMi0xNyA0MC00MCA0MHMtNDAtMTcuOC00MC00MCAxNy00MCA0MC00MCA0MCAxNy44IDQwIDQweiIvPjwvc3ZnPg=='" />
+                                                        <a href="${escapeHtml(res.url)}" target="_blank" class="font-semibold text-blue-600 hover:underline truncate">${escapeHtml(res.title)}</a>
                                                     </div>
-                                                    <span class="text-[10px] text-gray-400 line-clamp-2">${res.content || 'Content retrieved...'}</span>
-                                                </li>
-                                            `).join('')}
+                                                    <span class="text-[10px] text-gray-400 line-clamp-2">${escapeHtml(res.content || 'Content retrieved...')}</span>
+                                                </li>`;
+                                            }).join('')}
                                             ${len > 5 ? `<li class="text-xs text-gray-400 pl-1 mt-1 font-medium">+${len - 5} more sources</li>` : ''}
                                         </ul>`;
                                     }

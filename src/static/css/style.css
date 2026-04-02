@@ -68,9 +68,10 @@ body {
   background: #10b981; /* green 500 */
 }
 
-/* Markdown body formatting */
+/* Markdown body formatting — Report style */
 .markdown-body p {
   margin-bottom: 0.75rem;
+  line-height: 1.7;
 }
 .markdown-body p:last-child {
   margin-bottom: 0;
@@ -81,13 +82,27 @@ body {
   margin-bottom: 0.75rem;
 }
 .markdown-body li {
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.35rem;
+  line-height: 1.6;
 }
-.markdown-body h1, .markdown-body h2, .markdown-body h3 {
+.markdown-body h2 {
   font-weight: 700;
-  margin-top: 1.5rem;
+  font-size: 1.1rem;
+  margin-top: 1.75rem;
   margin-bottom: 0.5rem;
   color: #111827;
+  padding-bottom: 0.35rem;
+  border-bottom: 2px solid #e5e7eb;
+}
+.markdown-body h2:first-child {
+  margin-top: 0;
+}
+.markdown-body h3 {
+  font-weight: 600;
+  font-size: 0.95rem;
+  margin-top: 1.25rem;
+  margin-bottom: 0.4rem;
+  color: #374151;
 }
 
 /* Hide scrollbar for text area */
@@ -139,10 +154,12 @@ html.dark .step-item.done::before {
   background: #10b981; 
 }
 
-html.dark .markdown-body h1, 
-html.dark .markdown-body h2, 
-html.dark .markdown-body h3 {
+html.dark .markdown-body h2 {
   color: #f3f4f6; /* gray-100 */
+  border-bottom-color: #374151; /* gray-700 */
+}
+html.dark .markdown-body h3 {
+  color: #d1d5db; /* gray-300 */
 }
 
 html.dark .markdown-body .inline-citation {

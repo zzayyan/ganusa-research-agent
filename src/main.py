@@ -8,6 +8,7 @@ from src.graph.builder import build_research_graph
 from src.config import settings
 import os
 import json
+import asyncio
 
 app = FastAPI(title="Research Agent")
 
@@ -43,18 +44,38 @@ async def root(request: Request):
 
 @app.post("/research/stream")
 async def research_stream(request: ResearchRequest):
-    def event_generator():
-        try:
-            for event in research_graph.stream({"question": request.question, "iteration_count": 0}, stream_mode="updates"):
-                node_name = list(event.keys())[0]
-                state_update = event[node_name]
-                
-                yield f"data: {json.dumps({'type': 'progress', 'node': node_name, 'state': state_update})}\n\n"
-                
-            yield f"data: {json.dumps({'type': 'done'})}\n\n"
-        except Exception as e:
-            yield f"data: {json.dumps({'type': 'error', 'detail': str(e)})}\n\n"
-            
+
+    async def event_generator():
+        loop = asyncio.get_event_loop()
+        queue: asyncio.Queue = asyncio.Queue()
+
+        def run_graph():
+            try:
+                for event in research_graph.stream(
+                    {"question": request.question, "iteration_count": 0},
+                    stream_mode="updates",
+                ):
+                    node_name = list(event.keys())[0]
+                    state_update = event[node_name]
+                    payload = json.dumps({"type": "progress", "node": node_name, "state": state_update})
+                    loop.call_soon_threadsafe(queue.put_nowait, f"data: {payload}\n\n")
+
+                loop.call_soon_threadsafe(queue.put_nowait, f"data: {json.dumps({'type': 'done'})}\n\n")
+            except Exception as e:
+                payload = json.dumps({"type": "error", "detail": str(e)})
+                loop.call_soon_threadsafe(queue.put_nowait, f"data: {payload}\n\n")
+            finally:
+                loop.call_soon_threadsafe(queue.put_nowait, None)  # sentinel
+
+        # Run blocking graph in thread pool — event loop stays free
+        loop.run_in_executor(None, run_graph)
+
+        while True:
+            chunk = await queue.get()
+            if chunk is None:
+                break
+            yield chunk
+
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 
