@@ -5,6 +5,7 @@ from typing import List, Dict, Any, Literal
 class ResearchRequest(BaseModel):
     question: str
     mode: Literal["basic", "deep"] = "basic"
+    model: str = "amazon.nova-pro-v1:0"
 
 
 class ResearchResponse(BaseModel):

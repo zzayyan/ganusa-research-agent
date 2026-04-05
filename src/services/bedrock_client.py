@@ -27,13 +27,14 @@ def _get_client():
     return _build_client()
 
 
-def generate_text(prompt: str, max_tokens: int = 1024, temperature: float = 0.5) -> str:
+def generate_text(prompt: str, max_tokens: int = 1024, temperature: float = 0.5, model_id: str = None) -> str:
     last_error = None
+    target_model = model_id or settings.bedrock_model
 
     for attempt in range(1, MAX_RETRIES + 1):
         try:
             response = _get_client().converse(
-                modelId=settings.bedrock_model,
+                modelId=target_model,
                 system=[{"text": "You are a precise research assistant."}],
                 messages=[
                     {

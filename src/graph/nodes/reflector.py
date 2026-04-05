@@ -2,7 +2,7 @@ import logging
 import time
 from datetime import datetime
 from src.graph.state import ResearchState
-from src.services.bedrock_client import generate_text
+from src.services.llm_router import generate_text
 from src.utils.json_parser import extract_json
 
 logger = logging.getLogger(__name__)
@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 
 def reflector_node(state: ResearchState) -> ResearchState:
     question = state.get("question", "")
+    model = state.get("model")
     start = time.time()
     logger.info("reflector.start", extra={"question": question[:100]})
     verification_notes = state.get("verification_notes", "")
@@ -43,7 +44,7 @@ Verifier notes:
 {verification_notes}
 """
 
-    raw = generate_text(prompt)
+    raw = generate_text(prompt, model_id=model)
 
     try:
         parsed = extract_json(raw)

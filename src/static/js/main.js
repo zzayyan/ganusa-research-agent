@@ -85,7 +85,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Auto-resize textarea
     questionInput.addEventListener("input", function() {
         this.style.height = 'auto';
-        this.style.height = (this.scrollHeight < 200 ? this.scrollHeight : 200) + 'px';
+        this.style.height = (this.scrollHeight < 200 ? Math.max(100, this.scrollHeight) : 200) + 'px';
         submitBtn.disabled = !this.value.trim();
     });
 
@@ -252,6 +252,12 @@ document.addEventListener("DOMContentLoaded", () => {
         const finalAnswerContainer = nodeAi.querySelector('.final-answer-container');
         const finalAnswerBox = nodeAi.querySelector('.final-answer');
         const sourcesContainer = nodeAi.querySelector('.sources-container');
+        const modelNameText = nodeAi.querySelector('.model-name-text');
+        
+        if (modelNameText) {
+            const selectedModelName = document.getElementById('model-select') ? document.getElementById('model-select').options[document.getElementById('model-select').selectedIndex].text : "AWS Nova Pro";
+            modelNameText.textContent = selectedModelName;
+        }
         
         // Attach event to toggle accordion
         header.addEventListener("click", () => {
@@ -309,11 +315,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
         try {
             addStep("start", "Initializing", "Sending query to agent...");
+            const selectedModel = document.getElementById('model-select') ? document.getElementById('model-select').value : "amazon.nova-pro-v1:0";
             
             const response = await fetch("/research/stream", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ question, mode: modeForRequest }),
+                body: JSON.stringify({ question, mode: modeForRequest, model: selectedModel }),
                 signal: abortController.signal
             });
 

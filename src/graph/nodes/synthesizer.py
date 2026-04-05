@@ -2,7 +2,7 @@ import logging
 import time
 from datetime import datetime
 from src.graph.state import ResearchState
-from src.services.bedrock_client import generate_text
+from src.services.llm_router import generate_text
 from src.utils.json_parser import extract_json
 
 logger = logging.getLogger(__name__)
@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 def synthesizer_node(state: ResearchState) -> ResearchState:
     question = state.get("question", "")
     research_mode = state.get("research_mode", "basic")
+    model = state.get("model")
     start = time.time()
     logger.info("synthesizer.start", extra={"question": question[:100], "mode": research_mode})
     search_results = state.get("search_results", [])
@@ -124,7 +125,7 @@ Evidence:
     max_tokens = 512 if research_mode == "basic" else 2048
     temperature = 0.5 if research_mode == "basic" else 0.7
 
-    raw = generate_text(prompt, max_tokens=max_tokens, temperature=temperature)
+    raw = generate_text(prompt, model_id=model, max_tokens=max_tokens, temperature=temperature)
 
     try:
         parsed = extract_json(raw)

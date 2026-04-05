@@ -55,6 +55,7 @@ async def research_stream(request: ResearchRequest):
                     {
                         "question": request.question,
                         "research_mode": request.mode,
+                        "model": request.model,
                         "iteration_count": 0,
                     },
                     stream_mode="updates",
@@ -89,6 +90,7 @@ def research(request: ResearchRequest):
         result = research_graph.invoke({
             "question": request.question,
             "research_mode": request.mode,
+            "model": request.model,
             "iteration_count": 0
         })
 
