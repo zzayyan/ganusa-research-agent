@@ -4,6 +4,7 @@ import logging
 import functools
 from botocore.exceptions import ClientError, EndpointConnectionError
 from src.config import settings
+from langsmith import traceable, get_current_run_tree
 
 logger = logging.getLogger(__name__)
 
@@ -27,9 +28,16 @@ def _get_client():
     return _build_client()
 
 
+@traceable(run_type="llm")
 def generate_text(prompt: str, max_tokens: int = 1024, temperature: float = 0.5, model_id: str = None) -> str:
     last_error = None
     target_model = model_id or settings.bedrock_model
+    
+    # Inject metadata for cost tracking in LangSmith natively
+    run = get_current_run_tree()
+    if run:
+        run.metadata["ls_provider"] = "amazon_bedrock"
+        run.metadata["ls_model_name"] = target_model
 
     for attempt in range(1, MAX_RETRIES + 1):
         try:
@@ -44,6 +52,20 @@ def generate_text(prompt: str, max_tokens: int = 1024, temperature: float = 0.5,
                 ],
                 inferenceConfig={"temperature": temperature, "maxTokens": max_tokens},
             )
+            
+            # Extract basic metric usages
+            usage = response.get("usage", {})
+            input_tokens = usage.get("inputTokens", 0)
+            output_tokens = usage.get("outputTokens", 0)
+            
+            # Update LangSmith run context
+            if run:
+                run.metadata["usage_metadata"] = {
+                    "input_tokens": input_tokens,
+                    "output_tokens": output_tokens,
+                    "total_tokens": input_tokens + output_tokens,
+                }
+                
             return response["output"]["message"]["content"][0]["text"]
 
         except (EndpointConnectionError, ConnectionError) as e:

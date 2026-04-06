@@ -65,6 +65,55 @@ document.addEventListener("DOMContentLoaded", () => {
         applyModeUI('deep');
     });
 
+    // ── Custom Model Dropdown Logic ───────────────────────────────────────
+    let selectedModelValue = localStorage.getItem('selectedModel') || 'amazon.nova-pro-v1:0';
+    let selectedModelLabel = localStorage.getItem('selectedModelLabel') || 'AWS Nova Pro';
+    const dropdownBtn = document.getElementById('model-dropdown-btn');
+    const dropdownMenu = document.getElementById('model-dropdown-menu');
+    const dropdownSelected = document.getElementById('model-dropdown-selected');
+    
+    const setDropdownUI = (val, initialLoad=false) => {
+        if (!dropdownBtn) return;
+        document.querySelectorAll('.model-option').forEach(opt => {
+            const check = opt.querySelector('.check-icon');
+            if (opt.dataset.value === val) {
+                check.classList.remove('opacity-0');
+                check.classList.add('opacity-100');
+                if (dropdownSelected) {
+                    dropdownSelected.innerHTML = `<i class="${opt.dataset.icon}"></i><span>${opt.dataset.label}</span>`;
+                }
+                selectedModelLabel = opt.dataset.label;
+            } else {
+                check.classList.remove('opacity-100');
+                check.classList.add('opacity-0');
+            }
+        });
+    };
+    
+    setDropdownUI(selectedModelValue, true);
+
+    if (dropdownBtn && dropdownMenu) {
+        dropdownBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            dropdownMenu.classList.toggle('hidden');
+        });
+
+        document.querySelectorAll('.model-option').forEach(opt => {
+            opt.addEventListener('click', (e) => {
+                e.stopPropagation();
+                selectedModelValue = opt.dataset.value;
+                localStorage.setItem('selectedModel', selectedModelValue);
+                setDropdownUI(selectedModelValue);
+                dropdownMenu.classList.add('hidden');
+            });
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!dropdownBtn.contains(e.target) && !dropdownMenu.contains(e.target)) {
+                dropdownMenu.classList.add('hidden');
+            }
+        });
+    }
 
     // Populate samples
     SAMPLE_QUESTIONS.forEach(sample => {
@@ -129,12 +178,16 @@ document.addEventListener("DOMContentLoaded", () => {
         
         // Extract code blocks temporarily
         const codeBlocks = [];
-        html = html.replace(/```(?:[a-zA-Z0-9]+)?\n([\s\S]*?)```/g, (match, code) => {
-            codeBlocks.push(`<pre class="bg-gray-100 dark:bg-gray-800 p-4 rounded-xl overflow-x-auto text-sm block font-mono my-3 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 shadow-sm">${code.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>`); // Re-escape safely just for the code content
+        html = html.replace(/```(?:[a-zA-Z0-9+-]+)?\n([\s\S]*?)```/g, (match, code) => {
+            const langMatch = match.match(/^```([a-zA-Z0-9+-]+)\n/);
+            const lang = langMatch ? langMatch[1] : '';
+            const safeCode = code.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            codeBlocks.push(`<div class="relative group my-4"><div class="absolute right-2 top-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200"><button class="code-copy-btn bg-gray-700/80 hover:bg-gray-600 text-gray-200 rounded-md py-1.5 px-2 flex items-center gap-1.5 backdrop-blur-sm border border-gray-600/50 shadow-sm" title="Copy code"><i class="fa-regular fa-copy text-xs"></i><span class="text-[10px] font-semibold">Copy</span></button></div><pre class="bg-[#0d1117] dark:bg-[#0d1117] p-4 rounded-xl overflow-x-auto text-[13px] block border border-gray-200 dark:border-gray-700 shadow-sm m-0"><code class="${lang ? 'language-' + lang : ''} font-mono text-gray-300 dark:text-gray-300">${safeCode}</code></pre></div>`);
             return `__CODE_BLOCK_${codeBlocks.length - 1}__`;
         });
         html = html.replace(/```([\s\S]*?)```/g, (match, code) => {
-            codeBlocks.push(`<pre class="bg-gray-100 dark:bg-gray-800 p-4 rounded-xl overflow-x-auto text-sm block font-mono my-3 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 shadow-sm">${code.trim()}</pre>`);
+            const val = code.trim();
+            codeBlocks.push(`<div class="relative group my-4"><div class="absolute right-2 top-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200"><button class="code-copy-btn bg-gray-700/80 hover:bg-gray-600 text-gray-200 rounded-md py-1.5 px-2 flex items-center gap-1.5 backdrop-blur-sm border border-gray-600/50 shadow-sm" title="Copy code"><i class="fa-regular fa-copy text-xs"></i><span class="text-[10px] font-semibold">Copy</span></button></div><pre class="bg-[#0d1117] dark:bg-[#0d1117] p-4 rounded-xl overflow-x-auto text-[13px] block border border-gray-200 dark:border-gray-700 shadow-sm m-0"><code class="font-mono text-gray-300 dark:text-gray-300">${val}</code></pre></div>`);
             return `__CODE_BLOCK_${codeBlocks.length - 1}__`;
         });
 
@@ -172,9 +225,20 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         // Headings (### before ##)
-        html = html.replace(/^### (.*)$/gm, '<h3>$1</h3>');
-        html = html.replace(/^## (.*)$/gm, '<h2>$1</h2>');
-        html = html.replace(/^# (.*)$/gm, '<h1>$1</h1>');
+        let headingCount = 0;
+        html = html.replace(/^### (.*)$/gm, (m, title) => {
+            headingCount++;
+            return `<h3 id="h-${Date.now()}-${headingCount}" class="scroll-mt-6 group flex items-center gap-2"><a href="#h-${Date.now()}-${headingCount}" class="opacity-0 group-hover:opacity-100 text-blue-500 text-lg transition-opacity"><i class="fa-solid fa-link text-xs"></i></a>${title}</h3>`;
+        });
+        html = html.replace(/^## (.*)$/gm, (m, title) => {
+            headingCount++;
+            return `<h2 id="h-${Date.now()}-${headingCount}" class="scroll-mt-6 group flex items-center gap-2"><a href="#h-${Date.now()}-${headingCount}" class="opacity-0 group-hover:opacity-100 text-blue-500 text-lg transition-opacity"><i class="fa-solid fa-link text-sm"></i></a>${title}</h2>`;
+        });
+        html = html.replace(/^# (.*)$/gm, (m, title) => {
+            headingCount++;
+            return `<h1 id="h-${Date.now()}-${headingCount}" class="scroll-mt-6">${title}</h1>`;
+        });
+
         // Bold
         html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
         // Italic
@@ -255,8 +319,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const modelNameText = nodeAi.querySelector('.model-name-text');
         
         if (modelNameText) {
-            const selectedModelName = document.getElementById('model-select') ? document.getElementById('model-select').options[document.getElementById('model-select').selectedIndex].text : "AWS Nova Pro";
-            modelNameText.textContent = selectedModelName;
+            modelNameText.textContent = selectedModelLabel;
         }
         
         // Attach event to toggle accordion
@@ -315,12 +378,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
         try {
             addStep("start", "Initializing", "Sending query to agent...");
-            const selectedModel = document.getElementById('model-select') ? document.getElementById('model-select').value : "amazon.nova-pro-v1:0";
             
             const response = await fetch("/research/stream", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ question, mode: modeForRequest, model: selectedModel }),
+                body: JSON.stringify({ question, mode: modeForRequest, model: selectedModelValue }),
                 signal: abortController.signal
             });
 
@@ -458,6 +520,62 @@ document.addEventListener("DOMContentLoaded", () => {
             finalAnswerContainer.classList.remove("hidden");
             finalAnswerContainer.classList.add("fade-in");
             finalAnswerBox.innerHTML = simpleMarkdown(finalResult.final_answer || "No answer generated.", finalResult.citations || []);
+
+            // Handle Deep Mode Presentation
+            if (modeForRequest === 'deep') {
+                const contentWrapper = aiWrapper.querySelector('.content-wrapper');
+                const basicIconWrap = aiWrapper.querySelector('.basic-icon-wrap');
+                const tocSidebar = aiWrapper.querySelector('.toc-sidebar');
+                const tocNav = aiWrapper.querySelector('.toc-nav');
+
+                // Adjust layout for Notion-style formal report
+                finalAnswerContainer.classList.add('mt-6');
+                basicIconWrap.classList.add('hidden'); // Hide the avatar icon
+                contentWrapper.className = "content-wrapper flex-grow min-w-0 w-full transition-all duration-300 bg-white dark:bg-gray-800 p-6 md:p-8 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700";
+                
+                // Build TOC
+                const headings = finalAnswerBox.querySelectorAll('h2, h3');
+                if (headings.length > 0) {
+                    tocSidebar.classList.remove('hidden');
+                    tocSidebar.classList.add('md:block');
+
+                    headings.forEach(h => {
+                        const link = document.createElement('a');
+                        link.href = `#${h.id}`;
+                        link.textContent = h.textContent;
+                        link.className = `block py-1.5 px-2.5 rounded hover:bg-black/5 dark:hover:bg-white/10 hover:text-blue-600 dark:hover:text-blue-400 transition truncate text-gray-600 dark:text-gray-400 ${h.tagName === 'H3' ? 'pl-6 text-[11.5px]' : 'font-medium mt-1'}`;
+                        
+                        link.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            h.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            // Highlight active
+                            tocNav.querySelectorAll('a').forEach(a => a.classList.remove('text-blue-600', 'dark:text-blue-400', 'bg-blue-50', 'dark:bg-blue-900/30'));
+                            link.classList.add('text-blue-600', 'dark:text-blue-400', 'bg-blue-50', 'dark:bg-blue-900/30');
+                        });
+                        tocNav.appendChild(link);
+                    });
+                }
+            } else {
+                // Formatting for Basic mode
+                finalAnswerBox.classList.add('pt-1', 'pl-1');
+            }
+
+            // Code Highlights & Copy
+            finalAnswerBox.querySelectorAll('pre code').forEach((block) => {
+                if (window.hljs) hljs.highlightElement(block);
+            });
+
+            finalAnswerBox.querySelectorAll('.code-copy-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const block = btn.parentElement.nextElementSibling.querySelector('code');
+                    if (!block) return;
+                    const code = block.innerText;
+                    navigator.clipboard.writeText(code);
+                    const origHtml = btn.innerHTML;
+                    btn.innerHTML = `<i class="fa-solid fa-check text-xs text-green-400"></i><span class="text-[10px] font-semibold text-green-400">Copied!</span>`;
+                    setTimeout(() => btn.innerHTML = origHtml, 2000);
+                });
+            });
 
             // Copy to Clipboard logic
             const copyBtn = aiWrapper.querySelector('.copy-btn');
