@@ -405,6 +405,7 @@ dependencies = [
     { name = "langgraph" },
     { name = "langsmith" },
     { name = "pydantic" },
+    { name = "pyngrok" },
     { name = "python-dotenv" },
     { name = "requests" },
     { name = "tavily-python" },
@@ -422,6 +423,7 @@ requires-dist = [
     { name = "langgraph", specifier = ">=0.0.1" },
     { name = "langsmith", specifier = ">=0.1.0" },
     { name = "pydantic", specifier = ">=2.7.0" },
+    { name = "pyngrok", specifier = ">=8.0.0" },
     { name = "python-dotenv" },
     { name = "requests" },
     { name = "tavily-python" },
@@ -1085,6 +1087,18 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/1f/f2/f11dd73284122713f5f89fc940f370d035fa8e1e078d446b3313955157fe/pydantic_core-2.41.5-pp311-pypy311_pp73-musllinux_1_1_armv7l.whl", hash = "sha256:a668ce24de96165bb239160b3d854943128f4334822900534f2fe947930e5770", size = 2330317, upload-time = "2025-11-04T13:43:40.406Z" },
     { url = "https://files.pythonhosted.org/packages/88/9d/b06ca6acfe4abb296110fb1273a4d848a0bfb2ff65f3ee92127b3244e16b/pydantic_core-2.41.5-pp311-pypy311_pp73-musllinux_1_1_x86_64.whl", hash = "sha256:f14f8f046c14563f8eb3f45f499cc658ab8d10072961e07225e507adb700e93f", size = 2316992, upload-time = "2025-11-04T13:43:43.602Z" },
     { url = "https://files.pythonhosted.org/packages/36/c7/cfc8e811f061c841d7990b0201912c3556bfeb99cdcb7ed24adc8d6f8704/pydantic_core-2.41.5-pp311-pypy311_pp73-win_amd64.whl", hash = "sha256:56121965f7a4dc965bff783d70b907ddf3d57f6eba29b6d2e5dabfaf07799c51", size = 2145302, upload-time = "2025-11-04T13:43:46.64Z" },
+]
+
+[[package]]
+name = "pyngrok"
+version = "8.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pyyaml" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ec/7a/6f9b08044be356d228533f6a8454377e2d31dd1309adf13209906019762d/pyngrok-8.0.0.tar.gz", hash = "sha256:6e7aaf90b43086ad25508a1122423608003f712d9988319ddf7be50431028101", size = 42082, upload-time = "2026-04-01T15:43:43.333Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/53/ae/d8cb883f717627bd8e2fe2a65ab6544cd23789a63d61411c037a65246982/pyngrok-8.0.0-py3-none-any.whl", hash = "sha256:bdc34c7a0a7e9bad60e44b9dcc7661c055c0a79dc029c7100ed15669c626d5c1", size = 24467, upload-time = "2026-04-01T15:43:42.3Z" },
 ]
 
 [[package]]

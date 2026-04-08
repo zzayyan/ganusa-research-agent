@@ -31,7 +31,23 @@ body {
 
 /* Accordion Open state */
 .process-accordion.open .process-body {
-  max-height: 2000px !important; /* larger max height to accommodate all steps */
+  max-height: 400px !important; /* Fixed max height to enable internal scrolling */
+  overflow-y: auto !important;
+}
+
+/* Custom scrollbar for process body */
+.process-body::-webkit-scrollbar {
+  width: 6px;
+}
+.process-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+.process-body::-webkit-scrollbar-thumb {
+  background-color: rgba(156, 163, 175, 0.5);
+  border-radius: 10px;
+}
+.process-body::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(107, 114, 128, 0.8);
 }
 .process-accordion.open .twist-icon {
   transform: rotate(180deg);

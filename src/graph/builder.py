@@ -5,11 +5,14 @@ from src.graph.nodes.search import search_node
 from src.graph.nodes.verifier import verifier_node
 from src.graph.nodes.reflector import reflector_node
 from src.graph.nodes.synthesizer import synthesizer_node
+from src.graph.nodes.reasoner import reasoner_node, MAX_REACT_STEPS
+from src.graph.nodes.executor import executor_node
 
-MAX_ITERATIONS = 3
+# ── Basic mode: unchanged ────────────────────────────────────────────────────
+BASIC_MAX_ITERATIONS = 3
 
 def route_after_verifier(state: ResearchState):
-    if state.get("iteration_count", 0) >= MAX_ITERATIONS:
+    if state.get("iteration_count", 0) >= BASIC_MAX_ITERATIONS:
         return "synthesizer"  # Force synthesis after max retries
     if state.get("needs_retry", False):
         return "reflector"
@@ -38,6 +41,45 @@ def build_research_graph():
     )
 
     graph.add_edge("reflector", "search")
+    graph.add_edge("synthesizer", END)
+
+    return graph.compile()
+
+
+# ── Deep mode: ReAct loop ─────────────────────────────────────────────────────
+def route_after_reasoner(state: ResearchState) -> str:
+    """Route to executor (search) or synthesizer (finish) based on reasoner's decision."""
+    pending = state.get("pending_action", {})
+    action = pending.get("action", "finish")
+    step = state.get("react_step", 0)
+
+    if action == "finish" or step >= MAX_REACT_STEPS:
+        return "synthesizer"
+    return "executor"
+
+
+def build_deep_research_graph():
+    graph = StateGraph(ResearchState)
+
+    graph.add_node("planner", planner_node)
+    graph.add_node("reasoner", reasoner_node)
+    graph.add_node("executor", executor_node)
+    graph.add_node("synthesizer", synthesizer_node)
+
+    graph.set_entry_point("planner")
+    graph.add_edge("planner", "reasoner")
+
+    graph.add_conditional_edges(
+        "reasoner",
+        route_after_reasoner,
+        {
+            "executor": "executor",
+            "synthesizer": "synthesizer",
+        },
+    )
+
+    # After executing, loop back to reasoner to reason again
+    graph.add_edge("executor", "reasoner")
     graph.add_edge("synthesizer", END)
 
     return graph.compile()

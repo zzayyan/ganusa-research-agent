@@ -243,6 +243,43 @@ document.addEventListener("DOMContentLoaded", () => {
         html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
         // Italic
         html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+        // Tables
+        const tableBlocks = [];
+        html = html.replace(/(?:(?:^|\n)[^\n]*\|[^\n]*)+(?=\n|$)/g, (match) => {
+            if (!/\|?[\s-:]*[-:]+[\s-:]*\|/.test(match)) return match;
+            
+            let rows = match.trim().split('\n');
+            let tableHtml = '<div class="overflow-x-auto my-6"><table class="w-full text-sm text-left border-collapse border border-gray-200 dark:border-gray-700 shadow-sm rounded-lg overflow-hidden">';
+            let isHeader = true;
+            
+            rows.forEach((row, i) => {
+                if (/^\|?[\s-:]*[-:]+[\s-:]*\|?([\s-:]*[-:]+[\s-:]*\|?)*$/.test(row)) {
+                    isHeader = false;
+                    return;
+                }
+                
+                let cells = row.split('|');
+                if (row.trim().startsWith('|')) cells.shift();
+                if (row.trim().endsWith('|')) cells.pop();
+                
+                if (cells.length === 0) return;
+                
+                tableHtml += '<tr class="border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">';
+                cells.forEach(cell => {
+                    let cellTag = isHeader ? 'th' : 'td';
+                    let cellClasses = isHeader 
+                        ? 'px-4 py-3 bg-gray-50 dark:bg-gray-800/80 font-semibold text-gray-900 dark:text-gray-100 whitespace-nowrap' 
+                        : 'px-4 py-3 text-gray-700 dark:text-gray-300';
+                    tableHtml += `<${cellTag} class="${cellClasses}">${cell.trim()}</${cellTag}>`;
+                });
+                tableHtml += '</tr>';
+                if (i === 0) isHeader = false;
+            });
+            tableHtml += '</table></div>';
+            tableBlocks.push(tableHtml);
+            return `\n\n__TABLE_BLOCK_${tableBlocks.length - 1}__\n\n`;
+        });
+
         // Lists — wrap consecutive <li> items in <ul>
         html = html.replace(/^- (.*)$/gm, '<li>$1</li>');
         html = html.replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>');
@@ -251,9 +288,14 @@ document.addEventListener("DOMContentLoaded", () => {
         html = html.split('\n\n').map(p => {
             const trimmed = p.trim();
             if (!trimmed) return '';
-            if (trimmed.startsWith('<h') || trimmed.startsWith('<ul') || trimmed.startsWith('<li') || trimmed.startsWith('__CODE_BLOCK_')) return p;
+            if (trimmed.startsWith('<h') || trimmed.startsWith('<ul') || trimmed.startsWith('<li') || trimmed.startsWith('__CODE_BLOCK_') || trimmed.startsWith('__TABLE_BLOCK_')) return p;
             return `<p>${p.replace(/\n/g, '<br/>')}</p>`;
         }).join('');
+
+        // Restore tables
+        tableBlocks.forEach((tableH, i) => {
+            html = html.replace(`__TABLE_BLOCK_${i}__`, tableH);
+        });
 
         // Restore inline codes
         inlineCodes.forEach((codeHtml, i) => {
@@ -395,6 +437,125 @@ document.addEventListener("DOMContentLoaded", () => {
             const decoder = new TextDecoder();
             let buffer = "";
             let finalResult = { question };
+            let reactSteps = {};
+
+            const renderReactStep = (stepIdx) => {
+                const stepData = reactSteps[stepIdx];
+                const id = `react_step_${stepIdx}`;
+                
+                let obsHtml = "";
+                if (stepData.observation) {
+                    if (stepData.results && stepData.results.length > 0) {
+                        let linksHtml = `<div class="space-y-2 mt-1">` + stepData.results.map(r => {
+                            let hostname = '';
+                            try { hostname = new URL(r.url).hostname; } catch(e) {}
+                            return `
+                            <div class="flex flex-col text-[11px] text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 p-2.5 rounded-md border border-gray-200 dark:border-gray-700 shadow-sm hover:border-blue-300 dark:hover:border-blue-700 transition-colors">
+                                <div class="flex items-center gap-2 truncate">
+                                    <img src="https://www.google.com/s2/favicons?domain=${escapeHtml(hostname)}&sz=16" class="w-3.5 h-3.5 rounded-full flex-none bg-gray-100 dark:bg-gray-700" alt="icon" onerror="this.style.display='none'" />
+                                    <a href="${escapeHtml(r.url)}" target="_blank" class="font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline truncate">${escapeHtml(r.title)}</a>
+                                </div>
+                                <div class="mt-1 text-[10px] text-gray-400 dark:text-gray-500 truncate w-full group">
+                                    <span class="opacity-0 group-hover:opacity-100 transition-opacity float-right text-blue-500 ml-2">&rarr;</span>
+                                    ${escapeHtml(r.url)}
+                                </div>
+                            </div>`;
+                        }).join("") + `</div>`;
+                        
+                        obsHtml = `
+                        <div class="mt-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm rounded-lg overflow-hidden fade-in">
+                            <details class="group">
+                                <summary class="cursor-pointer p-2.5 flex items-center justify-between text-[11px] font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors list-none outline-none select-none">
+                                    <div class="flex items-center gap-2.5 w-full">
+                                        <div class="bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded p-1 flex-none flex items-center justify-center h-5 w-5">
+                                            <i class="fa-solid fa-bars-staggered text-[10px]"></i>
+                                        </div>
+                                        <span class="flex-grow py-0.5">${escapeHtml(stepData.observation)}</span>
+                                        <i class="fa-solid fa-chevron-down text-gray-400 text-[10px] transition-transform duration-200 group-open:rotate-180 flex-none mr-2"></i>
+                                    </div>
+                                    <style>summary::-webkit-details-marker {display: none;}</style>
+                                </summary>
+                                <div class="px-4 pb-3 pt-2 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/30">
+                                    ${linksHtml}
+                                </div>
+                            </details>
+                        </div>`;
+                    } else {
+                        obsHtml = `
+                        <div class="mt-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm rounded-lg p-2.5 flex items-start gap-2.5 fade-in">
+                            <div class="bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded p-1 flex-none mt-0.5 h-5 w-5 flex items-center justify-center">
+                                <i class="fa-solid fa-bars-staggered text-[10px]"></i>
+                            </div>
+                            <div class="text-[11px] text-gray-600 dark:text-gray-400 font-medium leading-relaxed py-0.5">
+                                ${escapeHtml(stepData.observation)}
+                            </div>
+                        </div>`;
+                    }
+                }
+
+                let actionLabel = stepData.action === "search" ? "Search Web" : "Finish ReAct";
+                let actionDesc = stepData.action === "search" ? stepData.action_input.query : "Proceeding to synthesis stage";
+                let actionIcon = stepData.action === "search" ? "fa-magnifying-glass" : "fa-flag-checkered";
+                let colorClass = stepData.action === "search" ? "text-indigo-500" : "text-emerald-500";
+
+                let actionHtml = `
+                    <div class="mt-3 flex flex-col gap-2 fade-in">
+                        <div class="text-[10px] font-bold uppercase tracking-wider ${colorClass} flex items-center gap-1.5">
+                            <i class="fa-solid ${actionIcon}"></i>
+                            ${escapeHtml(actionLabel)}
+                        </div>
+                        <div class="text-[11.5px] font-mono text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 rounded-md p-2.5 break-words whitespace-pre-wrap leading-relaxed shadow-sm">
+                            ${escapeHtml(actionDesc)}
+                        </div>
+                    </div>
+                `;
+
+                let coverageHtml = "";
+                if (stepData.coverage && Object.keys(stepData.coverage).length > 0) {
+                    let tagsContext = Object.entries(stepData.coverage).map(([aspect, status]) => {
+                        let badgeClass = "";
+                        let icon = "";
+                        if (status === "COVERED") {
+                            badgeClass = "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800";
+                            icon = "fa-check";
+                        } else if (status === "PARTIAL") {
+                            badgeClass = "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-800";
+                            icon = "fa-minus";
+                        } else {
+                            badgeClass = "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400 border-rose-200 dark:border-rose-800";
+                            icon = "fa-xmark";
+                        }
+                        return `<div class="flex items-center gap-1.5 text-[9.5px] border rounded px-1.5 py-0.5 ${badgeClass} font-semibold">
+                                    <i class="fa-solid ${icon} text-[8px]"></i>
+                                    <span class="truncate max-w-[150px]" title="${escapeHtml(aspect)}">${escapeHtml(aspect)}</span>
+                                </div>`;
+                    }).join("");
+                    
+                    coverageHtml = `
+                    <div class="mt-3 flex flex-col gap-1.5">
+                        <span class="text-[10px] text-gray-500 dark:text-gray-400 font-medium">Coverage Evaluation:</span>
+                        <div class="flex items-start gap-1.5 flex-wrap">
+                            ${tagsContext}
+                        </div>
+                    </div>`;
+                }
+
+                const extra = `
+                    <div class="mt-2">
+                        <div class="text-[12px] text-gray-800 dark:text-gray-200 leading-relaxed border-l-2 border-purple-500 pl-3 py-0.5" style="border-image: linear-gradient(to bottom, #a855f7, #6366f1) 1;">
+                            <span class="text-purple-500 font-bold mr-1">R:</span>
+                            ${escapeHtml(stepData.thought)}
+                        </div>
+                        ${coverageHtml}
+                        ${actionHtml}
+                        ${obsHtml}
+                    </div>
+                `;
+
+                
+                addStep(id, `Reason & Act <span class="text-xs text-gray-400 font-normal ml-1">Iter ${stepIdx + 1}</span>`, ``, extra);
+                statusSummary.innerHTML = `Exploring angle ${stepIdx + 1}...`;
+            };
 
             while (true) {
                 const { value, done } = await reader.read();
@@ -414,36 +575,67 @@ document.addEventListener("DOMContentLoaded", () => {
 
                             if (data.type === "error") throw new Error(data.detail);
 
-                            if (data.type === "progress") {
+                            if (data.type === "react_step") {
+                                reactSteps[data.step] = { ...data, observation: "" };
+                                renderReactStep(data.step);
+                            }
+                            else if (data.type === "react_observation") {
+                                if (reactSteps[data.step]) {
+                                    reactSteps[data.step].observation = data.observation;
+                                    reactSteps[data.step].results = data.results;
+                                    reactSteps[data.step].evidence_count = data.evidence_count;
+                                    renderReactStep(data.step);
+                                }
+                            }
+                            else if (data.type === "progress") {
                                 const node = data.node;
                                 const state = data.state;
                                 finalResult = { ...finalResult, ...state };
 
                                 if (node === "planner") {
-                                    // Capture time_range set by planner for search step badge
+                                    // Capture time_range set by planner
                                     if (state.time_range) finalResult.time_range = state.time_range;
+
+                                    const tr = state.time_range;
+                                    const trLabels = { day: "📅 Today", week: "📅 This week", month: "📅 This month", year: "📅 This year" };
+                                    const trBadge = (tr && trLabels[tr])
+                                        ? `<span style="display:inline-flex;align-items:center;font-size:10px;font-weight:700;padding:1px 7px;border-radius:9999px;background:#fffbeb;color:#b45309;border:1px solid #fcd34d;margin-left:4px;">${trLabels[tr]}</span>`
+                                        : "";
+
                                     let extra = "";
-                                    if (state.sub_questions && state.sub_questions.length > 0) {
-                                        extra = `<ul class="list-none pl-1 space-y-2 mt-2">
-                                            ${state.sub_questions.map(sq => `
-                                                <li class="flex items-start gap-2 text-xs text-gray-600 dark:text-gray-300 bg-gray-100/50 dark:bg-gray-800/50 p-2 rounded-md border border-gray-100 dark:border-gray-700">
-                                                    <i class="fa-solid fa-magnifying-glass text-blue-400 mt-0.5"></i>
-                                                    <span>${sq}</span>
-                                                </li>
-                                            `).join('')}
-                                        </ul>`;
+                                    if (modeForRequest === "deep") {
+                                        // Deep mode: show research plan narrative — no sub-questions
+                                        const planText = state.plan || "Formulating research strategy...";
+                                        extra = `
+                                            <div class="mt-2 flex flex-col gap-1.5">
+                                                <div class="flex items-start gap-2 text-xs text-gray-600 dark:text-gray-300 bg-indigo-50/60 dark:bg-indigo-900/20 p-2.5 rounded-lg border border-indigo-100 dark:border-indigo-800">
+                                                    <i class="fa-solid fa-map text-indigo-400 mt-0.5 flex-none"></i>
+                                                    <span class="leading-relaxed">${escapeHtml(planText)}</span>
+                                                </div>
+                                                <div class="flex items-center gap-1.5 text-[10px] text-indigo-500 dark:text-indigo-400 font-semibold pl-1">
+                                                    <i class="fa-solid fa-robot text-[9px]"></i>
+                                                    ReAct agent will autonomously form search queries
+                                                </div>
+                                            </div>`;
+                                        addStep("planner", `Research Strategy${trBadge}`, "", extra);
+                                    } else {
+                                        // Basic mode: show sub-questions list
+                                        if (state.sub_questions && state.sub_questions.length > 0) {
+                                            extra = `<ul class="list-none pl-1 space-y-2 mt-2">
+                                                ${state.sub_questions.map(sq => `
+                                                    <li class="flex items-start gap-2 text-xs text-gray-600 dark:text-gray-300 bg-gray-100/50 dark:bg-gray-800/50 p-2 rounded-md border border-gray-100 dark:border-gray-700">
+                                                        <i class="fa-solid fa-magnifying-glass text-blue-400 mt-0.5"></i>
+                                                        <span>${sq}</span>
+                                                    </li>
+                                                `).join('')}
+                                            </ul>`;
+                                        }
+                                        addStep("planner", `Planning Strategy${trBadge}`, "Deconstructing query into search intents:", extra);
                                     }
-                                    addStep("planner", "Planning Strategy", "Deconstructing query into search intents:", extra);
                                     statusSummary.textContent = "Planning research...";
 
                                 } else if (node === "search") {
                                     const len = state.search_results ? state.search_results.length : 0;
-                                    // Build amber time badge if planner set a time_range
-                                    const tr = finalResult.time_range;
-                                    const trLabels = { day: "📅 Today", week: "📅 This week", month: "📅 This month", year: "📅 This year" };
-                                    const trBadge = (tr && trLabels[tr])
-                                        ? ` <span style="display:inline-flex;align-items:center;font-size:10px;font-weight:700;padding:1px 7px;border-radius:9999px;background:#fffbeb;color:#b45309;border:1px solid #fcd34d;margin-left:4px;">${trLabels[tr]}</span>`
-                                        : "";
                                     let extra = "";
                                     if (state.search_results && state.search_results.length > 0) {
                                         extra = `<ul class="list-none space-y-2 mt-2">
@@ -462,7 +654,7 @@ document.addEventListener("DOMContentLoaded", () => {
                                             ${len > 5 ? `<li class="text-xs text-gray-400 pl-1 mt-1 font-medium">+${len - 5} more sources</li>` : ''}
                                         </ul>`;
                                     }
-                                    addStep("search", `Web Search${trBadge}`, `Evaluated ${len} search results...`, extra);
+                                    addStep("search", `Web Search`, `Evaluated ${len} search results...`, extra);
                                     statusSummary.textContent = "Searching web sources...";
 
                                 } else if (node === "verifier") {
@@ -491,6 +683,7 @@ document.addEventListener("DOMContentLoaded", () => {
                                     statusSummary.textContent = "Synthesizing final answer...";
                                 }
                             }
+
                         } catch (errParse) {
                             console.error("Chunk parse error", errParse);
                         }
@@ -536,8 +729,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 // Build TOC
                 const headings = finalAnswerBox.querySelectorAll('h2, h3');
                 if (headings.length > 0) {
-                    tocSidebar.classList.remove('hidden');
-                    tocSidebar.classList.add('md:block');
+                    // tocSidebar.classList.remove('hidden');
+                    tocSidebar.classList.add('xl:block');
 
                     headings.forEach(h => {
                         const link = document.createElement('a');

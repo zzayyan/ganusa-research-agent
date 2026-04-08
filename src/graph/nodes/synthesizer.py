@@ -14,12 +14,20 @@ def synthesizer_node(state: ResearchState) -> ResearchState:
     model = state.get("model")
     start = time.time()
     logger.info("synthesizer.start", extra={"question": question[:100], "mode": research_mode})
-    search_results = state.get("search_results", [])
     confidence = state.get("confidence_score", 0)
     current_date = datetime.now().strftime("%Y-%m-%d")
 
+    # ── Evidence source: ReAct accumulated (deep) vs. search_results (basic) ──
+    is_react_mode = research_mode == "deep"
+    if is_react_mode:
+        search_results = state.get("accumulated_evidence", [])
+        react_trace = state.get("react_trace", [])
+    else:
+        search_results = state.get("search_results", [])
+        react_trace = []
+
     # If evidence quality is too low, avoid hallucinated synthesis
-    if confidence < 0.40:
+    if not is_react_mode and confidence < 0.40:
         logger.info("synthesizer.skip", extra={"reason": "low_confidence"})
         return {
             **state,
@@ -35,11 +43,23 @@ def synthesizer_node(state: ResearchState) -> ResearchState:
         if item.get("url") and item.get("title") != "Search failed"
     ]
 
+    if is_react_mode and len(valid_results) == 0:
+        logger.info("synthesizer.skip", extra={"reason": "no_evidence_react"})
+        return {
+            **state,
+            "final_answer": (
+                "After multiple investigation attempts, the agent could not find "
+                "sufficient evidence to answer this question reliably. "
+                "Please try with a different framing or a more specific query."
+            ),
+            "citations": []
+        }
+
     evidence_lines = []
     citations = []
 
-    # Deep mode gets more sources to compensate for shorter snippets
-    evidence_cap = 8 if research_mode == "basic" else 12
+    # Cap scales with MAX_REACT_STEPS — 8 iterations × ~6 results = up to 48 raw evidence items
+    evidence_cap = 8 if research_mode == "basic" else 20
 
     for idx, item in enumerate(valid_results[:evidence_cap], start=1):
         evidence_lines.append(
@@ -76,13 +96,14 @@ def synthesizer_node(state: ResearchState) -> ResearchState:
     else:
         mode_rules = (
             "- Design your OWN section headings (## level) that best fit the topic and evidence\n"
-            "- You MUST have at least 4 sections and at most 7 sections\n"
+            "- You MUST have at least 5 sections and at most 8 sections\n"
             "- The FIRST section must be an introductory overview answering the user's question\n"
             "- The LAST section must address limitations, caveats, or areas needing further research\n"
-            "- Middle sections should cover distinct aspects of the topic (e.g., causes, impacts, comparisons, timeline, technical details, stakeholders, etc.)\n"
+            "- Middle sections should cover distinct aspects of the topic (e.g., causes, impacts, comparisons, timeline, technical details, stakeholders, future outlook, etc.)\n"
             "- Use a MIX of paragraphs and bullet points — do not rely on only one format\n"
-            "- Each section should have 2-4 paragraphs or equivalent content\n"
-            "- Keep the report between 800-1000 words total if the topic is complex, otherwise keep it between 500-800 words total"
+            "- Each section should have 2-4 paragraphs or equivalent content — be thorough, not superficial\n"
+            "- You have been given rich, multi-source evidence from an 8-step research process. USE IT ALL. Do not summarize lazily.\n"
+            "- Keep the report between 1200-1800 words total. If the topic is highly complex or multi-faceted, you may write up to 2000 words."
         )
         schema_example = (
             '  "final_answer": "## [Your Intro Heading]\\n\\nSummary paragraph answering the question [1].'
@@ -92,8 +113,29 @@ def synthesizer_node(state: ResearchState) -> ResearchState:
         )
         structure_instruction = "- Design your own report structure — choose section headings that naturally fit the topic"
 
-    prompt = f"""
-Return ONLY one JSON object. No markdown fences. No explanation.
+    # ── Build reasoning trace context (deep ReAct mode only) ─────────────────
+    trace_context = ""
+    if is_react_mode and react_trace:
+        trace_lines = []
+        for step in react_trace:
+            thought = step.get("thought", "")
+            action = step.get("action", "")
+            query = step.get("action_input", {}).get("query", "")
+            observation = step.get("observation", "")
+            if thought:
+                trace_lines.append(
+                    f"Step {step.get('step', '?')}: Searched for '{query}'\n"
+                    f"  Reasoning: {thought[:200]}\n"
+                    f"  Found: {observation}"
+                )
+        if trace_lines:
+            trace_context = (
+                "\nResearch Reasoning Trace (how this report was researched):\n"
+                + "\n".join(trace_lines)
+                + "\n"
+            )
+
+    prompt = f"""Return ONLY one JSON object. No markdown fences. No explanation.
 
 Schema:
 {{
@@ -112,7 +154,7 @@ Rules:
 - Factor in the current date when evaluating time-sensitive questions
 - Write in a professional, analytical tone
 - IMPORTANT: Detect the language of the User Question and write the ENTIRE report in that same language, including all section headings
-
+{trace_context}
 Current Date: {current_date}
 User Question:
 {question}
@@ -122,7 +164,8 @@ Evidence:
 """
 
     # Token budget & temperature per mode
-    max_tokens = 512 if research_mode == "basic" else 2048
+    # Deep mode: 4096 tokens ≈ 3000 words output capacity — enough for 1800w report + JSON overhead
+    max_tokens = 512 if research_mode == "basic" else 4096
     temperature = 0.5 if research_mode == "basic" else 0.7
 
     raw = generate_text(prompt, model_id=model, max_tokens=max_tokens, temperature=temperature)
